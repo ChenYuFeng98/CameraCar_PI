@@ -4,8 +4,7 @@ import RPi.GPIO as GPIO
 import time
 from threading import Timer
 
-#设置GPIO口为BCM编码方式
-GPIO.setmode(GPIO.BOARD)
+GPIO.setmode(GPIO.BOARD) # 设置GPIO口为BOARD编码方式
 IN3 = 36
 IN4 = 38
 ENB = 40
@@ -13,11 +12,10 @@ IN1 = 35
 IN2 = 37
 ENA = 31
 ServoPin = 12
+GPIO.setwarnings(False) # 忽略警告信息
 
-#忽略警告信息
-GPIO.setwarnings(False)
-#电机引脚初始化操作
-def motor_init():
+
+def motor_init(): # 电机引脚初始化操作
     global pwm_ENA
     GPIO.setup(ENA,GPIO.OUT,initial=GPIO.HIGH)
     GPIO.setup(IN1,GPIO.OUT,initial=GPIO.LOW)
@@ -26,45 +24,42 @@ def motor_init():
     GPIO.setup(ENB,GPIO.OUT,initial=GPIO.HIGH)
     GPIO.setup(IN3,GPIO.OUT,initial=GPIO.LOW)
     GPIO.setup(IN4,GPIO.OUT,initial=GPIO.LOW)
-#设置pwm引脚和频率为2000hz
+    #设置pwm引脚和频率为2000hz
     pwm_ENA = GPIO.PWM(ENA, 2000)
     pwm_ENB = GPIO.PWM(ENB, 2000)
     pwm_ENA.start(0)
     pwm_ENB.start(0)
     
-def servo_init():
+def servo_init():  # 脉冲函数，模拟方式产生pwm值基脉冲20ms，高电平0.5-2.5ms控制0-180度
     global pwm_servo
     GPIO.setup(ServoPin, GPIO.OUT,initial=GPIO.LOW)
     #设置pwm引脚和频率为50hz
     pwm_servo = GPIO.PWM(ServoPin, 50)
     pwm_servo.start(0)
-    time.sleep(0.1)
-#定义一个脉冲函数，用来模拟方式产生pwm值
-#时基脉冲为20ms，该脉冲高电平部分在0.5-
-#2.5ms控制0-180度
+    time.sleep(0.05)
+   
     
     
-def getc(num):
+def getc(num): # 判断正负零
     if num != 0:
         return int(num/abs(num))
     else:
         return 0
     
         
-def up(speed):
-    #print('G')       
+def up(speed):     
     GPIO.output(IN1, GPIO.HIGH)
     GPIO.output(IN2, GPIO.LOW)   
-#启动PWM设置占空比为100（0--100）
-    pwm_ENA.ChangeDutyCycle(speed) 
+    #启动PWM设置占空比为100（0--100）
+    pwm_ENA.ChangeDutyCycle(speed)  # left
     GPIO.output(IN3, GPIO.HIGH)
     GPIO.output(IN4, GPIO.LOW)   
-    pwm_ENB.ChangeDutyCycle(speed+5)           
+    pwm_ENB.ChangeDutyCycle(speed+5)  # right       
     
 def turn(angle):     
     pwm_servo.ChangeDutyCycle(2.5 + 10 * (81 + angle)/180)
-    #time.sleep(0.01)
-    #print(angle)
+    time.sleep(0.01)
+
            
 def stopmotor():
     pwm_servo.ChangeDutyCycle(2.5 + 10 * 81/180)
@@ -98,7 +93,7 @@ def endif():
             stopmotor()
     else:
         stopmotor()
-        #print("stop")
+        
 
 class MyTimer:
     def __int__(self):
@@ -126,12 +121,14 @@ class MyTimer:
         except:
             pass
         
-def printt():
-     print (e[0],"--",angle)
-     
-motor_init()
-time.sleep(0.1)
+    
+
+motor_init() 
+time.sleep(0.05)
+
 servo_init()
+time.sleep(0.05)
+
 global e
 e = [0,0,0] #误差初始化
 global angle
@@ -144,16 +141,16 @@ Ion = 0
 angle = 0
 Se = 0
 cap = cv.VideoCapture(0) 
- # HSV中黑色范围
-lower_black = np.array([0, 0, 0])
-upper_black = np.array([180, 255, 38])
-time.sleep(0.01)
+lower_black = np.array([0, 0, 0]) #  HSV中黑色范围
+upper_black = np.array([180, 255, 38]) #  HSV中黑色范围
+
+Kp = 0.82
+Ki = 0.001
+Kd = 1.2
+
 #mt = MyTimer()
 #mt.start(0.2,printt)
 
-Kp = 0.83 #0.81
-Ki = 0.001
-Kd = 1.3 # fangdao kaitou1.1
 
 while (True):
     # 读取一帧
@@ -162,16 +159,12 @@ while (True):
     frame1 = cv.resize(frame2, (320,240), interpolation=cv.INTER_AREA) 
     #frame = frame1[30:180,70:250]
     frame = frame1[90:140,60:260]#65..115
-    # 把 BGR 转为 HSV
-    hsv = cv.cvtColor(frame, cv.COLOR_BGR2HSV)
-    # 获得黑色区域的mask
-    mask = cv.inRange(hsv, lower_black, upper_black)
-    #cv.imshow('mask', mask)
-    #画横线
-    cv.line(mask,(0,0),(200,0),[0,0,0],1)
-    cv.line(mask,(0,50),(200,50),[0,0,0],1)
-    #轮廓处理
-    image,contours,hierarchy = cv.findContours(mask, 3, 1)
+    hsv = cv.cvtColor(frame, cv.COLOR_BGR2HSV) # 把 BGR 转为 HSV
+    mask = cv.inRange(hsv, lower_black, upper_black)# 获得黑色区域的mask
+    cv.line(mask,(0,0),(200,0),[0,0,0],1) #画横线
+    cv.line(mask,(0,50),(200,50),[0,0,0],1) #画横线
+
+    image,contours,hierarchy = cv.findContours(mask, 3, 1) #轮廓处理
     #print(len(contours))
     if len(contours) > 0:
         cnt = contours[0]   #选取其中的第一个轮廓,这幅图像只有两个轮廓
@@ -179,40 +172,36 @@ while (True):
         if M["m00"] != 0:
             cX=int(M["m10"]/M["m00"])   #计算质心
             ##cY=int(M["m01"]/M["m00"])                            
-            #cv2.drawContours(zone[i],contours[b],-1,(120,120,120),1)
-            ##cv.circle(mask,(cX,cY),2,(0,92,92),-1)
-            area = cv.contourArea(contours[0])+cv.arcLength(cnt,True)
-            
+            #cv2.drawContours(zone[i],contours[b],-1,(120,120,120),1) # 轮廓线
+            ##cv.circle(mask,(cX,cY),2,(0,92,92),-1)  #  描质心
+            area = cv.contourArea(contours[0])+cv.arcLength(cnt,True)     
             if (area > 100 and area < 8000):
-                '''zengliangshi
-                Up = Kp * (e[0]-e[1])
-                Ui = Ki * e[0]
-                Ud = Kd * (e[0]-e[1]-e[2])
-                #angle += Kp * (e[0]-e[1]) + Ki * e[0] + Kd * (e[0]-e[1]-e[2])
-                angle +=  Up + Ui + Ud'''
-                
-                e[2] = e[1]
+                ##e[2] = e[1]
                 e[1] = e[0]
                 e[0] = cX - 100
                 
-                if (abs(angle) < 50):# kang jifen baohe
+                if (abs(angle) < 40):# 抗积分饱和
                     Se += e[0]
-                if (abs(e[0]) > 35): #jifen fenli
+                if (abs(e[0]) > 35): #  积分分离
                     Ion = 0
                 else:
                     Ion = 1
                 
                 Up = Kp * e[0]
-                Ui = Ki * Se * Ion / 2 #tixing jifen
+                Ui = Ki * Se * Ion / 2 #  梯形积分
                 Ud = Kd * (e[0]-e[1])
                 angle =  Up + Ui + Ud
 
                 
-                if (abs(angle) > 50):   #Angle Max
+                if (abs(angle) > 50):   #  最大角度限制
                     angle = getc(angle) * 50
+
+    
+    
+                speed = 45
                     
                 #print (e[0],"--",angle)
-                up(45)
+                up(speed)
                 turn(angle)
             else:
                 endif()
@@ -221,11 +210,11 @@ while (True):
     else:
         endif()
     
-    #hsv2 = cv.cvtColor(frame2, cv.COLOR_BGR2HSV)
+    #hsv1 = cv.cvtColor(frame1, cv.COLOR_BGR2HSV)
     # 获得黑色区域的mask
-    #mask2 = cv.inRange(hsv2, lower_black, upper_black)
-    #cv.line(mask2,(180,120),(280,120),[0,0,0],1)
-    #cv.line(mask2,(180,520),(280,520),[0,0,0],1)
+    #mask1 = cv.inRange(hsv1, lower_black, upper_black)
+    #cv.line(mask1,(90,60),(140,60),[0,0,0],1)
+    #cv.line(mask1,(90,260),(140,260),[0,0,0],1)
     #cv.namedWindow('mask', cv.WINDOW_NORMAL)
     cv.imshow('mask', mask)
     k = cv.waitKey(2) & 0xFF
