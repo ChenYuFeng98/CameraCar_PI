@@ -128,8 +128,13 @@ class App:
 
         label35 = Label(frame3, text = "减速系数：") #转弯减速系数
         label35.grid(row = 2,column = 3, sticky = SE)
-        kv = Entry(frame3,textvariable = vv,width = 10) 
-        kv.grid(row = 2,column = 4)
+        kve = Entry(frame3,textvariable = kv,width = 10) 
+        kve.grid(row = 2,column = 4)
+        
+        label36 = Label(frame3, text = "转弯差速：") #转弯差速
+        label36.grid(row = 3,column = 3, sticky = SE)
+        dvv = Entry(frame3,textvariable = dv,width = 10) 
+        dvv.grid(row = 3,column = 4)
         #photo = PhotoImage(format="png",file=r"//home//pi//Desktop//PiCar//test.png",height = 200, width = 300)
         #picture = Label(frame3, image=photo,height = 80, width = 400)
         #picture.grid(row = 1,column = 2,rowspan = 4)
@@ -167,30 +172,14 @@ class App:
         time.sleep(0.01)
         
         
-    def left(self):
-        GPIO.output(IN1, GPIO.HIGH) 
-        GPIO.output(IN2, GPIO.LOW)         
-    #启动PWM设置占空比为100（0--100）
-        pwm_ENA.ChangeDutyCycle(ls.get())
-        GPIO.output(IN3, GPIO.HIGH) 
-        GPIO.output(IN4, GPIO.LOW)         
-    #启动PWM设置占空比为100（0--100）
-        pwm_ENB.ChangeDutyCycle(rs.get())       
+    def left(self):      
         pwm_servo.ChangeDutyCycle(2.5 + 10 * (83-40)/180)
         time.sleep(0.35)
         pwm_servo.ChangeDutyCycle(0)
         time.sleep(0.02)
 
         
-    def right(self):
-        GPIO.output(IN2, GPIO.LOW)
-        GPIO.output(IN1, GPIO.HIGH)   
-    #启动PWM设置占空比为100（0--100）
-        pwm_ENA.ChangeDutyCycle(ls.get())
-        GPIO.output(IN4, GPIO.LOW)
-        GPIO.output(IN3, GPIO.HIGH)   
-    #启动PWM设置占空比为100（0--100）
-        pwm_ENB.ChangeDutyCycle(rs.get())      
+    def right(self):    
         pwm_servo.ChangeDutyCycle(2.5 + 10 * (83+40)/180)
         time.sleep(0.35)
         pwm_servo.ChangeDutyCycle(0)
@@ -207,7 +196,7 @@ class App:
     #启动PWM设置占空比为100（0--100）
         pwm_ENB.ChangeDutyCycle(0)
         
-        pwm_servo.ChangeDutyCycle(2.5 + 10 * 82/180)
+        pwm_servo.ChangeDutyCycle(2.5 + 10 * 80/180)
         time.sleep(0.35)
         pwm_servo.ChangeDutyCycle(0)
         time.sleep(0.02)
@@ -266,7 +255,7 @@ class App:
                 angle = self.getc(cXend - 100) * 50
                 self.turn(angle)
                 
-                speed = initvv.get() - float(vv.get()) * abs(angle)
+                speed = cinitv - float(kv.get()) * abs(angle)
                 Dspeed = self.getc(angle) * 5    
                 self.up(speed,Dspeed)
             else:
@@ -282,6 +271,12 @@ class App:
         global Se
         global Ion
         global frame1
+        global cp
+        global ci
+        global cd
+        global cinitv
+        global ckv
+        global cdv
         start = time.process_time()
         ret, frame2 = cap.read()
         frame1 = cv.resize(frame2, (320,240), interpolation=cv.INTER_AREA) 
@@ -314,12 +309,12 @@ class App:
                         Ion = 0
                     else:
                         Ion = 1
-                    if (abs(e[0]) < 10): # dead zone
+                    if (abs(e[0]) < 8): # dead zone
                         Up = 0
                     else:
-                        Up = float(Kp.get()) * e[0]
-                    Ui = float(Ki.get()) * Se * Ion / 2 #  梯形积分
-                    Ud = float(Kd.get()) * (e[0]-e[1])
+                        Up = cp * e[0]
+                    Ui = ci * Se * Ion / 2 #  梯形积分
+                    Ud = cd * (e[0]-e[1])
                     angle =  Up + Ui + Ud
              
                     if (abs(angle) > 55):   #  最大角度限制
@@ -344,8 +339,8 @@ class App:
                     if (abs(Dspeed) > 5.5):
                         Dspeed = self.getc(Dspeed) * 5.5
                     '''
-                    speed = initvv.get() - float(vv.get()) * abs(angle)
-                    Dspeed = self.getc(angle) * 5
+                    speed = cinitv - ckv * abs(angle)
+                    Dspeed = self.getc(angle) * cdv
                     
                     self.up(speed,Dspeed)
                     
@@ -377,7 +372,19 @@ class App:
         global auto
         auto = 1
         global cap
-        cap = cv.VideoCapture(0) 
+        cap = cv.VideoCapture(0)
+        global cp
+        global ci
+        global cd
+        global cinitv
+        global ckv
+        global cdv
+        cp = float(Kp.get())
+        ci = float(Ki.get())
+        cd = float(Kd.get())
+        cinitv = initvv.get()
+        ckv = float(kv.get())
+        cdv = dv.get()
         timer = threading.Timer(0.02,self.show)
         timer.start()
 
@@ -396,9 +403,11 @@ Ki.set(0.001)
 Kd = StringVar()
 Kd.set(1.4)
 initvv = IntVar()
-initvv.set(50)
-vv = StringVar()
-vv.set(0.2)
+initvv.set(55)
+kv = StringVar()
+kv.set(0.24)
+dv = IntVar()
+dv.set(6)
 root.wm_title('Car Control')
 app = App(root)
 
